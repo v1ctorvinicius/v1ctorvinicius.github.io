@@ -10,7 +10,7 @@ async function main() {
 
   const scene = new THREE.Scene();
   const camera = createCamera();
-  const controls = createControls(camera, renderer);
+  createControls(camera, renderer);
   const renderTarget = createRenderTarget();
   const { depthMaterial, waterMaterial, water } = await createSceneObjects(
     scene,
@@ -53,7 +53,7 @@ function createRenderTarget() {
 }
 
 function createCamera() {
-  const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 500);
   camera.position.set(5, 7, 10);
   camera.lookAt(0, 0, 0);
   return camera;
@@ -74,12 +74,15 @@ async function createSceneObjects(scene, renderTarget, camera) {
   pointLight.position.set(1, 1, -1);
   scene.add(directionalLight, pointLight);
 
-  const box = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 10, 1),
-    new THREE.MeshPhongMaterial()
-  );
-  box.position.set(0, 0, 0);
-  scene.add(box);
+  const sandGeometry = new THREE.SphereGeometry(5, 32, 32);
+  const sandMaterial = new THREE.MeshPhongMaterial({
+    color: 0xFFFBA0,
+    specular: 0x101010,
+    shininess: 200,
+  });
+  const sand = new THREE.Mesh(sandGeometry, sandMaterial);
+  sand.position.set(0, -3, 0);
+  scene.add(sand);
 
   const depthMaterial = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,
@@ -106,8 +109,7 @@ async function createSceneObjects(scene, renderTarget, camera) {
         value: new THREE.Vector2(window.innerWidth, window.innerHeight),
       },
       foamColor: { value: new THREE.Color(0xffffff) },
-      waterColor: { value: new THREE.Color(0x14c6a5) },
-      opacity: { value: 0.8 },
+      waterColor: { value: new THREE.Color(0x02E6DF) },
     },
     vertexShader,
     fragmentShader,
@@ -116,7 +118,7 @@ async function createSceneObjects(scene, renderTarget, camera) {
     side: THREE.DoubleSide,
   });
 
-  const waterGeometry = new THREE.PlaneGeometry(10, 10);
+  const waterGeometry = new THREE.PlaneGeometry(50, 50);
   const water = new THREE.Mesh(waterGeometry, waterMaterial);
   water.rotation.x = -Math.PI * 0.5;
   scene.add(water);

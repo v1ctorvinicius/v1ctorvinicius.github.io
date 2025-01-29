@@ -56,7 +56,7 @@ void main() {
     vec3 finalColor = mix(foamColor, waterColor, step(threshold / (0.1 / thickness), diff));
 
     // Ajustar a transparência com base na profundidade
-    float transparency = clamp((fragmentLinearEyeDepth - linearEyeDepth) * 0.3, 0.3, 1.0);
+    float transparency = clamp((fragmentLinearEyeDepth - linearEyeDepth) * 0.3, 0.8, 1.0);
     
     gl_FragColor = vec4(finalColor, transparency);
 
