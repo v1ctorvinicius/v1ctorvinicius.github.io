@@ -1,6 +1,33 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { resizeRendererToDisplaySize, loadShader } from "./util";
+import { createNoise2D } from "simplex-noise";
+import alea from "alea";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+
+const prng = alea("porra");
+const noise2D = createNoise2D(prng);
+
+function generateTerrain(width, height, noise) {
+  const geometry = new THREE.PlaneGeometry(width, height, 100, 100);
+  const vertices = geometry.attributes.position.array;
+
+  const scale = 0.02; // Fator de escala para as coordenadas x e y (ajuste conforme necessário)
+  const heightFactor = 5; // Fator de amplificação da altura
+
+  for (let i = 0; i < vertices.length; i += 3) {
+    const x = vertices[i] * scale; // Escala as coordenadas x
+    const y = vertices[i + 1] * scale; // Escala as coordenadas y
+    const z = noise(x, y); // Calcula a altura do vértice com o ruído
+
+    vertices[i + 2] = z * heightFactor; // Ajusta a altura com o fator de amplificação
+  }
+
+  // Atualiza os vértices da geometria para refletir a modificação
+  geometry.attributes.position.needsUpdate = true;
+
+  return geometry;
+}
 
 async function main() {
   const clock = new THREE.Clock();
@@ -31,7 +58,6 @@ async function main() {
       water
     );
     applyWaterEffects(waterMaterial, renderTarget, time);
-
     renderer.render(scene, camera);
     requestAnimationFrame(render);
   }
@@ -67,22 +93,25 @@ function createControls(camera, renderer) {
 }
 
 async function createSceneObjects(scene, renderTarget, camera) {
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 4);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
   directionalLight.position.set(0, 5, 0);
+  scene.add(directionalLight);
 
-  const pointLight = new THREE.PointLight(0xffffff, 15);
-  pointLight.position.set(1, 1, -1);
-  scene.add(directionalLight, pointLight);
+  // const pointLight = new THREE.PointLight(0xffffff, 2);
+  // pointLight.position.set(1, 1, -1);
+  // scene.add(pointLight);
 
-  const sandGeometry = new THREE.SphereGeometry(5, 32, 32);
-  const sandMaterial = new THREE.MeshPhongMaterial({
-    color: 0xFFFBA0,
+  const terrainGeometry = generateTerrain(200, 200, noise2D);
+  const terrainMaterial = new THREE.MeshPhongMaterial({
+    color: 0xfffba0,
     specular: 0x101010,
     shininess: 200,
+    side: THREE.DoubleSide,
   });
-  const sand = new THREE.Mesh(sandGeometry, sandMaterial);
-  sand.position.set(0, -3, 0);
-  scene.add(sand);
+  // Criar o mesh do terreno
+  const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  terrain.rotation.x = -Math.PI / 2;
+  scene.add(terrain);
 
   const depthMaterial = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,
@@ -109,7 +138,7 @@ async function createSceneObjects(scene, renderTarget, camera) {
         value: new THREE.Vector2(window.innerWidth, window.innerHeight),
       },
       foamColor: { value: new THREE.Color(0xffffff) },
-      waterColor: { value: new THREE.Color(0x02E6DF) },
+      waterColor: { value: new THREE.Color(0x02e6df) },
     },
     vertexShader,
     fragmentShader,
@@ -118,10 +147,33 @@ async function createSceneObjects(scene, renderTarget, camera) {
     side: THREE.DoubleSide,
   });
 
-  const waterGeometry = new THREE.PlaneGeometry(50, 50);
+  const waterGeometry = new THREE.PlaneGeometry(1000, 1000);
   const water = new THREE.Mesh(waterGeometry, waterMaterial);
   water.rotation.x = -Math.PI * 0.5;
   scene.add(water);
+
+  // Carregar o arquivo GLB
+  const loader = new GLTFLoader();
+  loader.load(
+    "/public/boat.glb", // Caminho para o arquivo GLB
+    (gltf) => {
+      const model = gltf.scene; // O modelo carregado
+      scene.add(model); // Adiciona o modelo à cena
+      model.scale.set(0.1, 0.1, 0.1); // Ajuste de escala (opcional)
+      model.rotation.x = -Math.PI / 2; 
+      
+      model.rotation.z = -Math.PI / 5; 
+      model.position.set(0, -0.1, -3); // Ajuste de posição (opcional)
+    },
+    (xhr) => {
+      // Função de acompanhamento para mostrar o progresso de carregamento
+      console.log((xhr.loaded / xhr.total) * 100 + "% carregado");
+    },
+    (error) => {
+      // Função de erro se o carregamento falhar
+      console.error("Erro ao carregar o modelo GLB", error);
+    }
+  );
 
   return { depthMaterial, waterMaterial, water };
 }
