@@ -7,13 +7,14 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const prng = alea("porra");
 const noise2D = createNoise2D(prng);
+let boat;
 
 function generateTerrain(width, height, noise) {
   const geometry = new THREE.PlaneGeometry(width, height, 100, 100);
   const vertices = geometry.attributes.position.array;
 
-  const scale = 0.02; // Fator de escala para as coordenadas x e y (ajuste conforme necessário)
-  const heightFactor = 5; // Fator de amplificação da altura
+  const scale = 0.01; // Fator de escala para as coordenadas x e y (ajuste conforme necessário)
+  const heightFactor = 15; // Fator de amplificação da altura
 
   for (let i = 0; i < vertices.length; i += 3) {
     const x = vertices[i] * scale; // Escala as coordenadas x
@@ -33,7 +34,7 @@ async function main() {
   const clock = new THREE.Clock();
   const canvas = document.querySelector("#canvas");
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.outputEncoding = THREE.sRGBEncoding
 
   const scene = new THREE.Scene();
   const camera = createCamera();
@@ -47,8 +48,9 @@ async function main() {
 
   function render() {
     const time = clock.getElapsedTime();
+    waterMaterial.uniforms.time.value = time;
     updateRendererSize(renderer, camera);
-
+    // console.log("camera position", camera.position);
     captureSceneDepth(
       renderer,
       scene,
@@ -57,7 +59,7 @@ async function main() {
       depthMaterial,
       water
     );
-    applyWaterEffects(waterMaterial, renderTarget, time);
+    applyWaterEffects(waterMaterial, renderTarget, time, water);
     renderer.render(scene, camera);
     requestAnimationFrame(render);
   }
@@ -79,8 +81,9 @@ function createRenderTarget() {
 }
 
 function createCamera() {
-  const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 500);
-  camera.position.set(5, 7, 10);
+  const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 800);
+  camera.position.set(-15, 15, -4);
+
   camera.lookAt(0, 0, 0);
   return camera;
 }
@@ -93,25 +96,30 @@ function createControls(camera, renderer) {
 }
 
 async function createSceneObjects(scene, renderTarget, camera) {
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  directionalLight.position.set(0, 5, 0);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+  const directionalLightHelper = new THREE.DirectionalLightHelper(
+    directionalLight
+  );
+  directionalLight.position.set(0, 10, 0);
+  directionalLight.lookAt(0, 0, 0);
   scene.add(directionalLight);
+  scene.add(directionalLightHelper);
 
   // const pointLight = new THREE.PointLight(0xffffff, 2);
   // pointLight.position.set(1, 1, -1);
   // scene.add(pointLight);
 
-  const terrainGeometry = generateTerrain(200, 200, noise2D);
-  const terrainMaterial = new THREE.MeshPhongMaterial({
+  const terrainGeometry = generateTerrain(500, 500, noise2D);
+  const terrainMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffba0,
-    specular: 0x101010,
-    shininess: 200,
-    side: THREE.DoubleSide,
+    // wireframe: false, 
+    // specular: 0x101010,
+    // shininess: 2,
   });
   // Criar o mesh do terreno
-  const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
-  terrain.rotation.x = -Math.PI / 2;
-  scene.add(terrain);
+  const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  terrainMesh.rotation.x = -Math.PI / 2;
+  scene.add(terrainMesh);
 
   const depthMaterial = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,
@@ -145,33 +153,26 @@ async function createSceneObjects(scene, renderTarget, camera) {
     transparent: true,
     fog: true,
     side: THREE.DoubleSide,
+    wireframe: false,
   });
 
-  const waterGeometry = new THREE.PlaneGeometry(1000, 1000);
+  const waterGeometry = new THREE.PlaneGeometry(1000, 1000, 500, 500);
   const water = new THREE.Mesh(waterGeometry, waterMaterial);
   water.rotation.x = -Math.PI * 0.5;
   scene.add(water);
 
   // Carregar o arquivo GLB
   const loader = new GLTFLoader();
-  loader.load(
+  boat = loader.load(
     "/public/boat.glb", // Caminho para o arquivo GLB
     (gltf) => {
       const model = gltf.scene; // O modelo carregado
       scene.add(model); // Adiciona o modelo à cena
       model.scale.set(0.1, 0.1, 0.1); // Ajuste de escala (opcional)
-      model.rotation.x = -Math.PI / 2; 
-      
-      model.rotation.z = -Math.PI / 5; 
+      model.rotation.x = -Math.PI / 2;
+
+      model.rotation.z = -Math.PI / 5;
       model.position.set(0, -0.1, -3); // Ajuste de posição (opcional)
-    },
-    (xhr) => {
-      // Função de acompanhamento para mostrar o progresso de carregamento
-      console.log((xhr.loaded / xhr.total) * 100 + "% carregado");
-    },
-    (error) => {
-      // Função de erro se o carregamento falhar
-      console.error("Erro ao carregar o modelo GLB", error);
     }
   );
 
@@ -203,7 +204,7 @@ function captureSceneDepth(
   water.visible = true;
 }
 
-function applyWaterEffects(waterMaterial, renderTarget, time) {
+function applyWaterEffects(waterMaterial, renderTarget, time, water) {
   waterMaterial.uniforms.time.value = time;
   waterMaterial.uniforms.tDepth.value = renderTarget.depthTexture;
 }
