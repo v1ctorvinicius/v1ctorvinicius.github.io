@@ -1,11 +1,19 @@
 import * as THREE from "three";
+import { Lensflare, LensflareElement } from "three/addons/objects/Lensflare.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { resizeRendererToDisplaySize, loadShader } from "./util";
 import { createNoise2D } from "simplex-noise";
 import alea from "alea";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const prng = alea("porra");
+const textureLoader = new THREE.TextureLoader();
+const textureFlare0 = textureLoader.load("/lensflare.jpg");
+
+const lensflare = new Lensflare();
+lensflare.addElement(new LensflareElement(textureFlare0, 512, 0));
+
+
+const prng = alea("portfolio");
 const noise2D = createNoise2D(prng);
 let boat;
 
@@ -34,7 +42,9 @@ async function main() {
   const clock = new THREE.Clock();
   const canvas = document.querySelector("#canvas");
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
-  renderer.outputEncoding = THREE.sRGBEncoding
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   const camera = createCamera();
@@ -96,28 +106,58 @@ function createControls(camera, renderer) {
 }
 
 async function createSceneObjects(scene, renderTarget, camera) {
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 4);
   const directionalLightHelper = new THREE.DirectionalLightHelper(
     directionalLight
   );
-  directionalLight.position.set(0, 10, 0);
-  directionalLight.lookAt(0, 0, 0);
+  directionalLight.position.set(0, 100, 0);
   scene.add(directionalLight);
+  const directionalLightTarget = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  directionalLightTarget.position.set(-20, 0, 0);
+  directionalLight.target = directionalLightTarget;
+  directionalLight.castShadow = true;
+  //Set up shadow properties for the light
+  directionalLight.shadow.mapSize.width = 100;
+  directionalLight.shadow.mapSize.height = 100;
+  directionalLight.shadow.camera.near = 0.1;
+  directionalLight.shadow.camera.far = 500;
+  directionalLight.shadow.bias = -0.004;
+  directionalLight.shadow.camera.top = 500;
+  directionalLight.shadow.camera.bottom = -500;
+  directionalLight.shadow.camera.left = -500;
+  directionalLight.shadow.camera.right = 500;
+
+  directionalLight.add(lensflare)
   scene.add(directionalLightHelper);
+  scene.add(directionalLightTarget);
+
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.set(0, 3, 2);
+  cube.castShadow = true;
+  scene.add(cube);
 
   // const pointLight = new THREE.PointLight(0xffffff, 2);
   // pointLight.position.set(1, 1, -1);
   // scene.add(pointLight);
 
-  const terrainGeometry = generateTerrain(500, 500, noise2D);
+  const terrainGeometry = generateTerrain(1000, 1000, noise2D);
   const terrainMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffba0,
-    // wireframe: false, 
+    side: THREE.DoubleSide,
+    flatShading: false,
+    // wireframe: false,
     // specular: 0x101010,
     // shininess: 2,
   });
   // Criar o mesh do terreno
   const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  terrainMesh.receiveShadow = true;
+  terrainMesh.castShadow = true;
   terrainMesh.rotation.x = -Math.PI / 2;
   scene.add(terrainMesh);
 
@@ -164,15 +204,15 @@ async function createSceneObjects(scene, renderTarget, camera) {
   // Carregar o arquivo GLB
   const loader = new GLTFLoader();
   boat = loader.load(
-    "/public/boat.glb", // Caminho para o arquivo GLB
+    "/boat.glb", // Caminho para o arquivo GLB
     (gltf) => {
       const model = gltf.scene; // O modelo carregado
-      scene.add(model); // Adiciona o modelo à cena
       model.scale.set(0.1, 0.1, 0.1); // Ajuste de escala (opcional)
       model.rotation.x = -Math.PI / 2;
 
       model.rotation.z = -Math.PI / 5;
-      model.position.set(0, -0.1, -3); // Ajuste de posição (opcional)
+      model.position.set(-5, 0, 0); // Ajuste de posição (opcional)
+      scene.add(model); // Adiciona o modelo à cena
     }
   );
 
