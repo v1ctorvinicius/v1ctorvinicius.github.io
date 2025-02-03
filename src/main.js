@@ -11,7 +11,7 @@ const textureFlare0 = textureLoader.load("/lensflare.jpg");
 
 const lensflare = new Lensflare();
 lensflare.addElement(new LensflareElement(textureFlare0, 512, 0));
-
+let scene
 
 const prng = alea("portfolio");
 const noise2D = createNoise2D(prng);
@@ -48,6 +48,7 @@ async function main() {
 
   const scene = new THREE.Scene();
   const camera = createCamera();
+
   createControls(camera, renderer);
   const renderTarget = createRenderTarget();
   const { depthMaterial, waterMaterial, water } = await createSceneObjects(
@@ -110,34 +111,36 @@ async function createSceneObjects(scene, renderTarget, camera) {
   const directionalLightHelper = new THREE.DirectionalLightHelper(
     directionalLight
   );
-  directionalLight.position.set(0, 100, 0);
+  directionalLight.position.set(0, 200, 200);
   scene.add(directionalLight);
   const directionalLightTarget = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
   );
-  directionalLightTarget.position.set(-20, 0, 0);
+  directionalLightTarget.position.set(0, 0, 0);
   directionalLight.target = directionalLightTarget;
   directionalLight.castShadow = true;
-  //Set up shadow properties for the light
-  directionalLight.shadow.mapSize.width = 100;
-  directionalLight.shadow.mapSize.height = 100;
+  
+  directionalLight.shadow.mapSize.width = 2000;
+  directionalLight.shadow.mapSize.height = 2000;
   directionalLight.shadow.camera.near = 0.1;
   directionalLight.shadow.camera.far = 500;
-  directionalLight.shadow.bias = -0.004;
-  directionalLight.shadow.camera.top = 500;
-  directionalLight.shadow.camera.bottom = -500;
-  directionalLight.shadow.camera.left = -500;
-  directionalLight.shadow.camera.right = 500;
+  directionalLight.shadow.bias = -0.002;
+  directionalLight.shadow.camera.top = 200;
+  directionalLight.shadow.camera.bottom = -200;
+  directionalLight.shadow.camera.left = -200;
+  directionalLight.shadow.camera.right = 200;
 
   directionalLight.add(lensflare)
+
+  scene.add(new THREE.CameraHelper(directionalLight.shadow.camera));
   scene.add(directionalLightHelper);
   scene.add(directionalLightTarget);
 
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
   const cube = new THREE.Mesh(geometry, material);
-  cube.position.set(0, 3, 2);
+  cube.position.set(2, 3, -2);
   cube.castShadow = true;
   scene.add(cube);
 
@@ -148,9 +151,9 @@ async function createSceneObjects(scene, renderTarget, camera) {
   const terrainGeometry = generateTerrain(1000, 1000, noise2D);
   const terrainMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffba0,
-    side: THREE.DoubleSide,
+    // side: THREE.DoubleSide,
     flatShading: false,
-    // wireframe: false,
+    // wireframe: true,
     // specular: 0x101010,
     // shininess: 2,
   });
@@ -158,7 +161,8 @@ async function createSceneObjects(scene, renderTarget, camera) {
   const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.receiveShadow = true;
   terrainMesh.castShadow = true;
-  terrainMesh.rotation.x = -Math.PI / 2;
+  terrainMesh.rotation.x = -Math.PI / 2
+  terrainGeometry.computeVertexNormals();
   scene.add(terrainMesh);
 
   const depthMaterial = new THREE.MeshDepthMaterial({
