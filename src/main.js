@@ -8,8 +8,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 // Variáveis globais
 let scene, camera, renderer, controls, clock, renderTarget;
-let water, waterMaterial, depthMaterial;
-let boat; // Armazenará o modelo da embarcação
+let waterMesh, waterMaterial, depthMaterial;
+let terrainMesh;
+let me; // Armazenará o modelo da embarcação
 
 // Inicializações de recursos e loaders
 const textureLoader = new THREE.TextureLoader();
@@ -17,32 +18,48 @@ const textureFlare0 = textureLoader.load("/lensflare.jpg");
 const lensflare = new Lensflare();
 lensflare.addElement(new LensflareElement(textureFlare0, 512, 0));
 
-const prng = alea("portfolio");
+const prng = alea("v1ctorvinicius");
 const noise2D = createNoise2D(prng);
 
-// Função para gerar o terreno com base em ruído simplex
 function generateTerrain(width, height, noise) {
-  const geometry = new THREE.PlaneGeometry(width, height, 100, 100);
+  const geometry = new THREE.PlaneGeometry(width, height, 750, 750);
   const vertices = geometry.attributes.position.array;
 
-  const scale = 0.01; // Fator de escala para as coordenadas x e y
-  const heightFactor = 15; // Fator de amplificação da altura
+  const scale = 0.04; // Escala geral do noise
+  const heightFactor = 1.5; // Altura das dunas
+  const stretchFactor = 2.5; // Alongamento das dunas na direção do vento
+
+  const windDirection = new THREE.Vector2(1, -3).normalize(); // Define a direção do vento
+  const cosA = windDirection.x;
+  const sinA = windDirection.y;
 
   for (let i = 0; i < vertices.length; i += 3) {
-    const x = vertices[i] * scale;
-    const y = vertices[i + 1] * scale;
-    const z = noise(x, y);
-    vertices[i + 2] = z * heightFactor;
+    let x = vertices[i] * scale;
+    let y = vertices[i + 1] * scale;
+
+    // Rotaciona as coordenadas para alinhar o noise com o vento
+    let xAligned = x * cosA - y * sinA;
+    let yAligned = x * sinA + y * cosA;
+
+    // Alongamento na direção do vento
+    let baseHeight = noise(xAligned, yAligned * stretchFactor);
+
+    // Ajuste da altura final
+    let height = baseHeight * heightFactor;
+
+    vertices[i + 2] = height;
   }
 
+  geometry.computeVertexNormals();
   geometry.attributes.position.needsUpdate = true;
+
   return geometry;
 }
 
-// Função de renderização (extraída para o escopo global)
 function render() {
   const time = clock.getElapsedTime();
   waterMaterial.uniforms.time.value = time;
+  terrainMesh;
 
   updateRendererSize();
   captureSceneDepth();
@@ -53,8 +70,11 @@ function render() {
 }
 
 // Cria o render target para capturar a profundidade da cena
-function createRenderTarget() {
-  const target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+function createDepthRenderTarget() {
+  const target = new THREE.WebGLRenderTarget(
+    window.innerWidth,
+    window.innerHeight
+  );
   target.texture.minFilter = THREE.NearestFilter;
   target.texture.magFilter = THREE.NearestFilter;
   target.texture.generateMipmaps = false;
@@ -63,26 +83,29 @@ function createRenderTarget() {
   return target;
 }
 
-// Cria a câmera e define sua posição e orientação
 function createCamera() {
-  const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 800);
-  cam.position.set(-15, 15, -4);
-  cam.lookAt(0, 0, 0);
+  const cam = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    800
+  );
+  cam.position.set(-25, 10, -4);
   return cam;
 }
 
-// Cria os controles da cena usando OrbitControls
 function createControls() {
-  const ctrls = new OrbitControls(camera, renderer.domElement);
-  ctrls.target.set(0, 0, 0);
-  ctrls.update();
-  return ctrls;
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.maxPolarAngle = Math.PI / 2.2;
+  controls.update();
+  return controls;
 }
 
-// Função para criar e adicionar objetos à cena
 async function createSceneObjects() {
-  // Luz direcional com helper
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 4);
+  scene.background = new THREE.Color(0x9aabc3);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
   directionalLight.position.set(0, 200, 200);
   directionalLight.castShadow = true;
   directionalLight.shadow.mapSize.width = 2000;
@@ -94,12 +117,11 @@ async function createSceneObjects() {
   directionalLight.shadow.camera.bottom = -200;
   directionalLight.shadow.camera.left = -200;
   directionalLight.shadow.camera.right = 200;
-
-  // Alinha o lensflare à luz
   directionalLight.add(lensflare);
 
-  // Adiciona helper e alvo para a luz
-  const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight);
+  const directionalLightHelper = new THREE.DirectionalLightHelper(
+    directionalLight
+  );
   const directionalLightTarget = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
@@ -112,23 +134,21 @@ async function createSceneObjects() {
   scene.add(directionalLightTarget);
   scene.add(directionalLight);
 
-  // Cube de exemplo
+  // Cubo de exemplo
   const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.BoxGeometry(1, 10, 1),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
   );
-  cube.position.set(-2, 3, -2);
+  cube.position.set(7, 3, -2);
   cube.castShadow = true;
   scene.add(cube);
 
-  // Terreno
-  const terrainGeometry = generateTerrain(1000, 1000, noise2D);
-  terrainGeometry.computeVertexNormals();
+  const terrainGeometry = generateTerrain(500, 500, noise2D);
   const terrainMaterial = new THREE.MeshStandardMaterial({
-    color: 0xfffba0,
+    color: 0xccc5bf,
     flatShading: false,
   });
-  const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.receiveShadow = true;
   terrainMesh.castShadow = true;
   terrainMesh.rotation.x = -Math.PI / 2;
@@ -140,7 +160,6 @@ async function createSceneObjects() {
     blending: THREE.NoBlending,
   });
 
-  // Carrega shaders para o efeito da água
   const [vertexShader, fragmentShader] = await Promise.all([
     loadShader("/src/shaders/vertexShader.glsl"),
     loadShader("/src/shaders/fragmentShader.glsl"),
@@ -150,14 +169,18 @@ async function createSceneObjects() {
     defines: { DEPTH_PACKING: 0, ORTHOGRAPHIC_CAMERA: 0 },
     uniforms: {
       time: { value: 0 },
-      threshold: { value: 3 },
+      threshold: { value: 0.0 },
+      foamScale: { value: 0.0 },
+      thickness: { value: 0.5 },
       tDudv: { value: textureLoader.load("foam-texture.png") },
       tDepth: { value: renderTarget.depthTexture },
       cameraNear: { value: camera.near },
       cameraFar: { value: camera.far },
-      resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-      foamColor: { value: new THREE.Color(0xffffff) },
-      waterColor: { value: new THREE.Color(0x02e6df) },
+      resolution: {
+        value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+      },
+      foamColor: { value: new THREE.Color(0x149F75) },
+      waterColor: { value: new THREE.Color(0x025b5e) },
     },
     vertexShader,
     fragmentShader,
@@ -166,50 +189,33 @@ async function createSceneObjects() {
     wireframe: false,
   });
 
-  // Cria a malha da água
   const waterGeometry = new THREE.PlaneGeometry(1000, 1000, 500, 500);
-  waterGeometry.computeVertexNormals();
-  water = new THREE.Mesh(waterGeometry, waterMaterial);
-  water.rotation.x = -Math.PI * 0.5;
-  scene.add(water);
+  waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+  waterMesh.rotation.x = -Math.PI * 0.5;
+  waterMesh.position.y = -0.5;
+  scene.add(waterMesh);
 
-  // Carrega o modelo GLB da embarcação
   const loader = new GLTFLoader();
-  loader.load(
-    "/boat.glb",
-    (gltf) => {
-      const model = gltf.scene;
-      model.scale.set(0.1, 0.1, 0.1);
-      model.rotation.x = -Math.PI / 2;
-      model.rotation.z = -Math.PI / 5;
-      model.position.set(-5, 0, 0);
-      scene.add(model);
-      boat = model;
-    },
-    undefined,
-    (error) => {
-      console.error("Erro ao carregar o modelo:", error);
-    }
-  );
 }
 
 // Atualiza o tamanho do renderer de acordo com o tamanho da tela
 function updateRendererSize() {
   if (resizeRendererToDisplaySize(renderer)) {
-    camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+    camera.aspect =
+      renderer.domElement.clientWidth / renderer.domElement.clientHeight;
     camera.updateProjectionMatrix();
   }
 }
 
 // Captura a profundidade da cena para os efeitos de água
 function captureSceneDepth() {
-  water.visible = false;
+  waterMesh.visible = false;
   scene.overrideMaterial = depthMaterial;
   renderer.setRenderTarget(renderTarget);
   renderer.render(scene, camera);
   renderer.setRenderTarget(null);
   scene.overrideMaterial = null;
-  water.visible = true;
+  waterMesh.visible = true;
 }
 
 // Atualiza os uniformes do material da água com os efeitos desejados
@@ -228,6 +234,7 @@ async function main() {
   // Cria o renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
   renderer.outputEncoding = THREE.sRGBEncoding;
+  // renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -237,7 +244,7 @@ async function main() {
 
   // Cria os controles e o render target
   controls = createControls();
-  renderTarget = createRenderTarget();
+  renderTarget = createDepthRenderTarget();
 
   // Cria os objetos da cena (luzes, terreno, água, modelos, etc)
   await createSceneObjects();

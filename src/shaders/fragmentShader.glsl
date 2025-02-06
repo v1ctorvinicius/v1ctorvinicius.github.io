@@ -11,8 +11,10 @@ uniform float cameraNear;
 uniform float cameraFar;
 uniform float time;
 uniform float threshold;
+uniform float thickness;
+uniform float foamScale;
 uniform vec2 resolution;
-uniform sampler2D tTexture; 
+uniform sampler2D tTexture;
 
 float getDepth(const in vec2 screenPosition) {
     #if DEPTH_PACKING == 1
@@ -38,31 +40,28 @@ void main() {
 
     float diff = saturate(fragmentLinearEyeDepth - linearEyeDepth);
 
-    float foamForce = 0.05;
-    float thickness = 0.01;
-    float foamScale = 10.0;
+    // Ajuste do deslocamento
+    vec2 displacementUV = vUv * foamScale - vec2(time * 0.05);
+    vec2 displacement = texture2D(tDudv, displacementUV).rg;
+    displacement = ((displacement * 2.0) - 1.0) * 0.2;
 
-    
-
-    vec2 displacement = texture2D(tDudv, (vUv * foamScale) - time * 0.05).rg;
-    displacement = ((displacement * 2.0) - 1.0) * 1.0;
-
-    float waveAmount = sin((vUv.x + vUv.y) * 10.0 + time * 5.0) * foamForce;
-    displacement.x += waveAmount;
-    displacement.y += waveAmount;
+    float waveAmount = sin((vUv.x + vUv.y) * 10.0 + time * 5.0) * 0.005;
+    displacement += vec2(waveAmount);
 
     diff += displacement.x;
 
-    vec3 finalColor = mix(foamColor, waterColor, step(threshold / (0.1 / thickness), diff));
+    // Transição suave entre água e espuma
+    float foamFactor = smoothstep(threshold, threshold + thickness, diff);
+    vec3 finalColor = mix(foamColor, waterColor, foamFactor);
 
     // Ajustar a transparência com base na profundidade
-    float transparency = clamp((fragmentLinearEyeDepth - linearEyeDepth) * 0.1, 0.9, 1.0);
+    float transparency = clamp((fragmentLinearEyeDepth - linearEyeDepth) * 0.5 + foamFactor * 0.2, 0.6, 1.0);
     
     gl_FragColor = vec4(finalColor, transparency);
 
     #include <fog_fragment>
     #include <tonemapping_fragment>
 
-    // Aplicando correção gamma manualmente
+    // Correção Gamma
     gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1.0 / 2.2));
 }
