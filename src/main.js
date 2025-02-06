@@ -11,7 +11,6 @@ import { Sky } from "three/addons/objects/Sky.js";
 
 let scene, camera, renderer, controls, clock, renderTarget;
 let waterMesh, waterMaterial, depthMaterial;
-let terrainMesh;
 let me;
 
 const textureLoader = new THREE.TextureLoader();
@@ -59,7 +58,6 @@ function generateTerrain(width, height, noise) {
 function render() {
   const time = clock.getElapsedTime();
   waterMaterial.uniforms.time.value = time;
-  terrainMesh;
 
   updateRendererSize();
   captureSceneDepth();
@@ -87,7 +85,7 @@ function createCamera() {
   const cam = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
-    0.1,
+    0.01,
     800
   );
   cam.position.set(-25, 10, -4);
@@ -141,21 +139,18 @@ async function createSceneObjects() {
   scene.add(directionalLightTarget);
   scene.add(directionalLight);
 
-  // Cubo de exemplo
-  const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 10, 1),
-    new THREE.MeshStandardMaterial({ color: 0xffffff })
-  );
-  cube.position.set(7, 3, -2);
-  cube.castShadow = true;
-  scene.add(cube);
-
+  const terrainTexture = new THREE.TextureLoader().load("sand-texture.jpg");
+  terrainTexture.wrapS = THREE.RepeatWrapping;
+  terrainTexture.wrapT = THREE.RepeatWrapping;
+  terrainTexture.repeat.set(100, 100);
+  terrainTexture.rotation = Math.PI / 5;
   const terrainGeometry = generateTerrain(500, 500, noise2D);
   const terrainMaterial = new THREE.MeshStandardMaterial({
     color: 0xccc5bf,
     flatShading: false,
+    map: terrainTexture,
   });
-  terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.receiveShadow = true;
   terrainMesh.castShadow = true;
   terrainMesh.rotation.x = -Math.PI / 2;
