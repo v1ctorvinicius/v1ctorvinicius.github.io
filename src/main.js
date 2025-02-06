@@ -7,6 +7,7 @@ import alea from "alea";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import vertexShader from "./shaders/vertexShader.glsl";
 import fragmentShader from "./shaders/fragmentShader.glsl";
+import { Sky } from "three/addons/objects/Sky.js";
 
 let scene, camera, renderer, controls, clock, renderTarget;
 let waterMesh, waterMaterial, depthMaterial;
@@ -102,10 +103,17 @@ function createControls() {
 }
 
 async function createSceneObjects() {
-  scene.background = new THREE.Color(0x9aabc3);
+  // scene.background = new THREE.Color(0x9aabc3);
+  const sky = new Sky();
+  sky.scale.setScalar(450000);
+  const phi = THREE.MathUtils.degToRad(45);
+  const theta = THREE.MathUtils.degToRad(180);
+  const sunPosition = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
+  sky.material.uniforms.sunPosition.value = sunPosition;
+  scene.add(sky);
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
-  directionalLight.position.set(0, 200, 200);
+  directionalLight.position.set(0, 200, -200);
   directionalLight.castShadow = true;
   directionalLight.shadow.mapSize.width = 2000;
   directionalLight.shadow.mapSize.height = 2000;
