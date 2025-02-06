@@ -5,14 +5,14 @@ import { resizeRendererToDisplaySize, loadShader } from "./util";
 import { createNoise2D } from "simplex-noise";
 import alea from "alea";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import vertexShader from "./shaders/vertexShader.glsl";
+import fragmentShader from "./shaders/fragmentShader.glsl";
 
-// Variáveis globais
 let scene, camera, renderer, controls, clock, renderTarget;
 let waterMesh, waterMaterial, depthMaterial;
 let terrainMesh;
-let me; // Armazenará o modelo da embarcação
+let me;
 
-// Inicializações de recursos e loaders
 const textureLoader = new THREE.TextureLoader();
 const textureFlare0 = textureLoader.load("/lensflare.jpg");
 const lensflare = new Lensflare();
@@ -25,11 +25,11 @@ function generateTerrain(width, height, noise) {
   const geometry = new THREE.PlaneGeometry(width, height, 750, 750);
   const vertices = geometry.attributes.position.array;
 
-  const scale = 0.04; // Escala geral do noise
-  const heightFactor = 1.5; // Altura das dunas
-  const stretchFactor = 2.5; // Alongamento das dunas na direção do vento
+  const scale = 0.04;
+  const heightFactor = 1.5;
+  const stretchFactor = 2.5;
 
-  const windDirection = new THREE.Vector2(1, -3).normalize(); // Define a direção do vento
+  const windDirection = new THREE.Vector2(1, -3).normalize();
   const cosA = windDirection.x;
   const sinA = windDirection.y;
 
@@ -44,7 +44,6 @@ function generateTerrain(width, height, noise) {
     // Alongamento na direção do vento
     let baseHeight = noise(xAligned, yAligned * stretchFactor);
 
-    // Ajuste da altura final
     let height = baseHeight * heightFactor;
 
     vertices[i + 2] = height;
@@ -160,11 +159,6 @@ async function createSceneObjects() {
     blending: THREE.NoBlending,
   });
 
-  const [vertexShader, fragmentShader] = await Promise.all([
-    loadShader("/src/shaders/vertexShader.glsl"),
-    loadShader("/src/shaders/fragmentShader.glsl"),
-  ]);
-
   waterMaterial = new THREE.ShaderMaterial({
     defines: { DEPTH_PACKING: 0, ORTHOGRAPHIC_CAMERA: 0 },
     uniforms: {
@@ -179,7 +173,7 @@ async function createSceneObjects() {
       resolution: {
         value: new THREE.Vector2(window.innerWidth, window.innerHeight),
       },
-      foamColor: { value: new THREE.Color(0x149F75) },
+      foamColor: { value: new THREE.Color(0x149f75) },
       waterColor: { value: new THREE.Color(0x025b5e) },
     },
     vertexShader,
@@ -198,7 +192,6 @@ async function createSceneObjects() {
   const loader = new GLTFLoader();
 }
 
-// Atualiza o tamanho do renderer de acordo com o tamanho da tela
 function updateRendererSize() {
   if (resizeRendererToDisplaySize(renderer)) {
     camera.aspect =
@@ -218,40 +211,30 @@ function captureSceneDepth() {
   waterMesh.visible = true;
 }
 
-// Atualiza os uniformes do material da água com os efeitos desejados
 function applyWaterEffects(time) {
   waterMaterial.uniforms.time.value = time;
   waterMaterial.uniforms.tDepth.value = renderTarget.depthTexture;
 }
 
-// Função principal de inicialização
 async function main() {
   clock = new THREE.Clock();
 
-  // Seleciona o canvas
   const canvas = document.querySelector("#canvas");
 
-  // Cria o renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
   renderer.outputEncoding = THREE.sRGBEncoding;
-  // renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Inicializa a cena e a câmera
   scene = new THREE.Scene();
   camera = createCamera();
 
-  // Cria os controles e o render target
   controls = createControls();
   renderTarget = createDepthRenderTarget();
 
-  // Cria os objetos da cena (luzes, terreno, água, modelos, etc)
   await createSceneObjects();
 
-  // Inicia o loop de renderização
   requestAnimationFrame(render);
 }
 
-// Inicia a aplicação
 main();
