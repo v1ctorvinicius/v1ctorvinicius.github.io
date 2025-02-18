@@ -17,12 +17,15 @@ let shadowMatrix, shadowMapRenderTarget;
 let directionalLight, lightHelper;
 let dirLightShadowMap;
 
+// debug
+const camPos = new THREE.Vector3();
+
 const textureLoader = new THREE.TextureLoader();
 const textureFlare0 = textureLoader.load("/lensflare.jpg");
 const lensflare = new Lensflare();
 lensflare.addElement(new LensflareElement(textureFlare0, 512, 0));
 
-const prng = alea("flamengo");
+const prng = alea("v1ctor");
 const noise2D = createNoise2D(prng);
 
 async function main() {
@@ -43,6 +46,7 @@ async function main() {
 }
 
 function render() {
+  debug();
   const time = clock.getElapsedTime();
   updateRendererSize();
   captureSceneDepth();
@@ -51,6 +55,15 @@ function render() {
 
   renderer.render(scene, camera);
   requestAnimationFrame(render);
+}
+
+function debug(){
+  const debugParams = {
+    camPos: camera.position,
+  }
+  camPos.setFromMatrixPosition(camera.matrixWorld);
+  console.log('Debug', debugParams);
+  
 }
 
 function generateTerrain(width, height, noise) {
@@ -93,9 +106,8 @@ function createDepthRenderTarget() {
     window.innerWidth,
     window.innerHeight
   );
+
   target.texture.minFilter = THREE.NearestFilter;
-  target.texture.magFilter = THREE.NearestFilter;
-  // target.texture.generateMipmaps = true;
   target.depthTexture = new THREE.DepthTexture();
   target.depthTexture.type = THREE.UnsignedShortType;
   return target;
@@ -122,13 +134,13 @@ function createControls() {
 
 function createSceneObjects() {
   scene.fog = new THREE.Fog(new THREE.Color(0x9aabc3), 10, 400);
-  // scene.background = new THREE.Color(0x9aabc3);
+
   const sky = new Sky();
-  sky.material.uniforms.turbidity.value = 1; // More haze
-  sky.material.uniforms.rayleigh.value = 0.1; // Blue scattering
+  sky.material.uniforms.turbidity.value = 0.1;        // haze
+  sky.material.uniforms.rayleigh.value = 0.1;         // blue scattering
   sky.material.uniforms.mieCoefficient.value = 0.005; // Air particle density
-  sky.material.uniforms.mieDirectionalG.value = 0.8; // Sun glow intensity
-  renderer.toneMappingExposure = 0.5; // Adjust brightness
+  sky.material.uniforms.mieDirectionalG.value = 0.8;  // Sun glow intensity
+  renderer.toneMappingExposure = 0.5;                 // brightness
 
   sky.scale.setScalar(450000);
   const phi = THREE.MathUtils.degToRad(65);
@@ -168,27 +180,7 @@ function createSceneObjects() {
   scene.add(directionalLightTarget);
   scene.add(directionalLight);
 
-  shadowMapRenderTarget = new THREE.WebGLRenderTarget(2048, 2048);
-  shadowMapRenderTarget.depthTexture = new THREE.DepthTexture();
-  shadowMapRenderTarget.depthTexture.type = THREE.FloatType;
-  shadowMapRenderTarget.depthTexture.format = THREE.DepthFormat;
-
   dirLightShadowMap = directionalLight.shadow.map;
-
-  // console.log(
-  //   "GENERATE SCENE OBJECTS directionalLight.shadow.map ",
-  //   directionalLight.shadow.map
-  // );
-
-  // const shadowDebugMaterial = new THREE.MeshBasicMaterial({
-  //   map: directionalLight.shadow.map.texture,
-  // });
-  // const shadowDebugPlane = new THREE.Mesh(
-  //   new THREE.PlaneGeometry(5, 5),
-  //   shadowDebugMaterial
-  // );
-  // shadowDebugPlane.position.set(0, 10, 0); // Posicione acima do terreno
-  // scene.add(shadowDebugPlane);
 
   const terrainTexture = new THREE.TextureLoader().load("sand-texture.jpg");
   terrainTexture.wrapS = THREE.RepeatWrapping;
@@ -201,8 +193,6 @@ function createSceneObjects() {
   terrainMaterial = new THREE.MeshStandardMaterial({
     map: terrainTexture,
     fog: true,
-    // roughness: 10,
-    // metalness: 1,
   });
   terrainMaterial.onBeforeCompile = function (shader) {
     shader.uniforms.uTexture = { value: terrainTexture };
@@ -260,12 +250,12 @@ function createSceneObjects() {
       `
     );
   };
+  
   const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.castShadow = true;
   terrainMesh.receiveShadow = true;
   terrainMesh.rotation.x = -Math.PI / 2;
   scene.add(terrainMesh);
-
 
   waterMaterial = new THREE.ShaderMaterial({
     defines: { DEPTH_PACKING: 0, ORTHOGRAPHIC_CAMERA: 0 },
