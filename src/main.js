@@ -147,14 +147,6 @@ function createCamera() {
   return cam;
 }
 
-function createControls() {
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0, 0);
-  controls.maxPolarAngle = Math.PI / 2.2;
-  controls.update();
-  return controls;
-}
-
 function createSceneObjects() {
   scene.fog = new THREE.Fog(new THREE.Color(0x9aabc3), 10, 400);
 
