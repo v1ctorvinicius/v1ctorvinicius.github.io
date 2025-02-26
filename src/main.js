@@ -49,7 +49,6 @@ async function main() {
 
   scene = new THREE.Scene();
   cam = createCamera();
-  controls = createControls();
 
   depthRenderTarget = createDepthRenderTarget();
   createSceneObjects();
