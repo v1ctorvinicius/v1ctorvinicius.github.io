@@ -10,8 +10,9 @@ void main() {
     #include <fog_vertex>
 
     vec3 pos = position;
-    float wave = sin(dot(pos.xz, vec2(0.001, 0.002)) + time * 1.0) * 0.01;
-    pos.z += wave;
+    float wave = sin(dot(pos.xz, vec2(1, 2)) + time * 1.0) * 0.03; //lagoon
+    //float wave = sin(dot(pos.xz, vec2(10, 10)) + time * 2.0) * 0.05; //sea waves
+    pos.z += wave;                      
     pos.x += cos(time * 2.0) * 0.01;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
