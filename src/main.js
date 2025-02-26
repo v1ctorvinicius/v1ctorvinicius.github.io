@@ -14,8 +14,8 @@ let scene, cam, renderer, controls, clock, depthRenderTarget;
 let waterMesh, waterMaterial, depthMaterial;
 let terrainMaterial;
 let me;
-let shadowMatrix, shadowMapRenderTarget;
-let directionalLight, lightHelper;
+let sky;
+let directionalLight, lightCameraHelper;
 let dirLightShadowMap;
 let camIndex = 0;
 let camPositions = [
@@ -156,21 +156,21 @@ function createControls() {
 function createSceneObjects() {
   scene.fog = new THREE.Fog(new THREE.Color(0x9aabc3), 10, 400);
 
-  const sky = new Sky();
-  sky.material.uniforms.turbidity.value = 0.1;        // haze
-  sky.material.uniforms.rayleigh.value = 0.1;         // blue scattering
+  sky = new Sky();
+  sky.material.uniforms.turbidity.value = 0.2; // haze
+  sky.material.uniforms.rayleigh.value = 0.1; // blue scattering
   sky.material.uniforms.mieCoefficient.value = 0.005; // Air particle density
-  sky.material.uniforms.mieDirectionalG.value = 0.8;  // Sun glow intensity
-  renderer.toneMappingExposure = 0.5;                 // brightness
+  sky.material.uniforms.mieDirectionalG.value = 0.8; // Sun glow intensity
+  renderer.toneMappingExposure = 0.5; // brightness
 
   sky.scale.setScalar(450000);
   const phi = THREE.MathUtils.degToRad(65);
-  const theta = THREE.MathUtils.degToRad(0);
+  const theta = THREE.MathUtils.degToRad(90);
   const sunPosition = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
   sky.material.uniforms.sunPosition.value = sunPosition;
   scene.add(sky);
 
-  directionalLight = new THREE.DirectionalLight(0xffffff, 5);
+  directionalLight = new THREE.DirectionalLight(0xffffff, 3.5);
   directionalLight.position.set(0, 10, 10);
   directionalLight.shadow.camera.near = 0.1;
   directionalLight.shadow.camera.far = 500;
@@ -195,8 +195,8 @@ function createSceneObjects() {
   directionalLightTarget.castShadow = true;
   directionalLight.target = directionalLightTarget;
 
-  lightHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
-  scene.add(lightHelper);
+  lightCameraHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+  // scene.add(lightCameraHelper);
   scene.add(directionalLightHelper);
   scene.add(directionalLightTarget);
   scene.add(directionalLight);
