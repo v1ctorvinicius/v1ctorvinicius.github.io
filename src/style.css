@@ -29,9 +29,9 @@ body {
 
 #camera-btn {
   position: absolute;
-  top: 50%;
+  left: 50%;
+  bottom: 1vh;
   background-color: rgba(50, 50, 50, 0.50);
-  right: 1vw;
   z-index: 1;
   height: 4vh;
   width: 4vh;

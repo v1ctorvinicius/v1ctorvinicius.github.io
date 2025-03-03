@@ -10,7 +10,7 @@ import fragmentShader from "./shaders/waterFragmentShader.glsl";
 import { Sky } from "three/addons/objects/Sky.js";
 
 let time;
-let scene, cam, renderer, controls, clock, depthRenderTarget;
+let scene, camera, renderer, controls, clock, depthRenderTarget;
 let waterMesh, waterMaterial, depthMaterial;
 let terrainMaterial,
   terrainSeed = "v1ctorvinicius";
@@ -18,7 +18,7 @@ let me;
 let sky;
 let directionalLight, lightCameraHelper;
 let dirLightShadowMap;
-let camIndex = 0;
+let cameraIndex = 0;
 let camPositions = [
   new THREE.Vector3(-40, 0, 75),
   new THREE.Vector3(-53, 2.5, 86),
@@ -29,7 +29,7 @@ let camTargetPositions = [
 ];
 
 // debug
-let camPos = new THREE.Vector3();
+let cameraPos = new THREE.Vector3();
 
 const textureLoader = new THREE.TextureLoader();
 const textureFlare0 = textureLoader.load("/lensflare.jpg");
@@ -48,7 +48,7 @@ async function main() {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   scene = new THREE.Scene();
-  cam = createCamera();
+  camera = createCamera();
 
   depthRenderTarget = createDepthRenderTarget();
   createSceneObjects();
@@ -64,25 +64,25 @@ function render() {
   captureSceneDepth();
   updateWaterMaterialUniforms(time);
 
-  renderer.render(scene, cam);
+  renderer.render(scene, camera);
   requestAnimationFrame(render);
 }
 
 function updateCamera() {
   // animate camera with sin wave
-  cam.position.x = camPositions[camIndex].x + Math.sin(time * 0.8) * .05;
-  cam.position.y = camPositions[camIndex].y + Math.sin(time * 0.8) * .05;
-  cam.position.z = camPositions[camIndex].z + Math.cos(time * 0.8) * .05;
+  camera.position.x = camPositions[cameraIndex].x + Math.sin(time * 0.8) * 0.05;
+  camera.position.y = camPositions[cameraIndex].y + Math.sin(time * 0.8) * 0.05;
+  camera.position.z = camPositions[cameraIndex].z + Math.cos(time * 0.8) * 0.05;
 }
 
 function debug() {
   const debugParams = {
-    camPos: cam.position,
-    camRot: cam.rotation,
+    cameraPos: camera.position,
+    cameraRot: camera.rotation,
     sunPosition: directionalLight.position,
     sky: sky,
   };
-  camPos.setFromMatrixPosition(cam.matrixWorld);
+  cameraPos.setFromMatrixPosition(camera.matrixWorld);
   console.log("Debug", debugParams);
 }
 
@@ -142,6 +142,12 @@ function createCamera() {
 
   cam.position.set(camPositions[0].x, camPositions[0].y, camPositions[0].z);
   cam.lookAt(camTargetPositions[0]);
+
+  const cameraButton = document.getElementById("camera-btn");
+  cameraButton.addEventListener("click", () => {
+    cameraIndex++;
+    if (cameraIndex >= camPositions.length) cameraIndex = 0;
+  });
 
   return cam;
 }
@@ -284,8 +290,8 @@ function createSceneObjects() {
       thickness: { value: 0.5 },
       tDudv: { value: textureLoader.load("foam-texture.png") },
       tDepth: { value: depthRenderTarget.depthTexture },
-      cameraNear: { value: cam.near },
-      cameraFar: { value: cam.far },
+      cameraNear: { value: camera.near },
+      cameraFar: { value: camera.far },
       resolution: {
         value: new THREE.Vector2(window.innerWidth, window.innerHeight),
       },
@@ -312,9 +318,9 @@ function createSceneObjects() {
 
 function updateRendererSize() {
   if (resizeRendererToDisplaySize(renderer)) {
-    cam.aspect =
+    camera.aspect =
       renderer.domElement.clientWidth / renderer.domElement.clientHeight;
-    cam.updateProjectionMatrix();
+    camera.updateProjectionMatrix();
   }
 }
 
@@ -323,7 +329,7 @@ function captureSceneDepth() {
   waterMesh.visible = false;
   // scene.overrideMaterial = depthMaterial;
   renderer.setRenderTarget(depthRenderTarget);
-  renderer.render(scene, cam);
+  renderer.render(scene, camera);
   renderer.setRenderTarget(null);
   scene.overrideMaterial = null;
   waterMesh.visible = true;
