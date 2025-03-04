@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { Lensflare, LensflareElement } from "three/addons/objects/Lensflare.js";
+// import { Lensflare, LensflareElement } from "three/addons/objects/Lensflare.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { resizeRendererToDisplaySize, loadShader } from "./util";
 import { createNoise2D } from "simplex-noise";
 import alea from "alea";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import vertexShader from "./shaders/waterVertexShader.glsl";
 import fragmentShader from "./shaders/waterFragmentShader.glsl";
 import { Sky } from "three/addons/objects/Sky.js";
@@ -27,14 +27,15 @@ let camTargetPositions = [
   new THREE.Vector3(0, 0, 60),
   new THREE.Vector3(30, 0, 90),
 ];
+const cameraAnimationStartPos = new THREE.Vector3(-40, 0, 75);
 
 // debug
 let cameraPos = new THREE.Vector3();
 
 const textureLoader = new THREE.TextureLoader();
-const textureFlare0 = textureLoader.load("/lensflare.jpg");
-const lensflare = new Lensflare();
-lensflare.addElement(new LensflareElement(textureFlare0, 512, 0));
+// const textureFlare0 = textureLoader.load("/lensflare.jpg");
+// const lensflare = new Lensflare();
+// lensflare.addElement(new LensflareElement(textureFlare0, 512, 0));
 
 const prng = alea(terrainSeed);
 const noise2D = createNoise2D(prng);
@@ -73,6 +74,7 @@ function updateCamera() {
   camera.position.x = camPositions[cameraIndex].x + Math.sin(time * 0.8) * 0.05;
   camera.position.y = camPositions[cameraIndex].y + Math.sin(time * 0.8) * 0.05;
   camera.position.z = camPositions[cameraIndex].z + Math.cos(time * 0.8) * 0.05;
+  camera.lookAt(camTargetPositions[cameraIndex]);
 }
 
 function debug() {
@@ -153,7 +155,7 @@ function createCamera() {
 }
 
 function createSceneObjects() {
-  scene.fog = new THREE.Fog(new THREE.Color(0x9aabc3), 10, 400);
+  scene.fog = new THREE.Fog(new THREE.Color(0x9aabc3), 10, 200);
 
   sky = new Sky();
   sky.material.uniforms.turbidity.value = 0.2; // haze
@@ -169,7 +171,7 @@ function createSceneObjects() {
   sky.material.uniforms.sunPosition.value = sunPosition;
   scene.add(sky);
 
-  directionalLight = new THREE.DirectionalLight(0xffffff, 3.5);
+  directionalLight = new THREE.DirectionalLight(0xffffff, 3);
   directionalLight.position.set(0, 10, 10);
   directionalLight.shadow.camera.near = 0.1;
   directionalLight.shadow.camera.far = 500;
@@ -182,37 +184,38 @@ function createSceneObjects() {
   directionalLight.shadow.bias = -0.0002;
   // directionalLight.add(lensflare);
   directionalLight.castShadow = true;
-
-  const directionalLightHelper = new THREE.DirectionalLightHelper(
-    directionalLight
-  );
+  scene.add(directionalLight);
 
   const directionalLightTarget = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
   );
-
   directionalLightTarget.position.set(0, 2, 0);
-  directionalLightTarget.castShadow = true;
+  scene.add(directionalLightTarget);
   directionalLight.target = directionalLightTarget;
 
-  lightCameraHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
-  // scene.add(lightCameraHelper);
+  const directionalLightHelper = new THREE.DirectionalLightHelper(
+    directionalLight
+  );
   scene.add(directionalLightHelper);
-  scene.add(directionalLightTarget);
-  scene.add(directionalLight);
 
   dirLightShadowMap = directionalLight.shadow.map;
 
-  const terrainTexture = new THREE.TextureLoader().load("sand-texture.jpg");
+  const terrainTexture = new THREE.TextureLoader().load(
+    "textures/sand-texture.jpg"
+  );
   terrainTexture.wrapS = THREE.RepeatWrapping;
   terrainTexture.wrapT = THREE.RepeatWrapping;
   terrainTexture.rotation = Math.PI / 5;
 
-  const terrainGeometry = generateTerrain(1500, 1500, noise2D);
+  const terrainTextureNormal = new THREE.TextureLoader().load(
+    "textures/sand-texture-normal.png"
+  );
+  terrainTextureNormal.wrapS = THREE.RepeatWrapping;
+  terrainTextureNormal.wrapT = THREE.RepeatWrapping;
+  terrainTextureNormal.rotation = Math.PI / 5;
 
   terrainMaterial = new THREE.MeshStandardMaterial({
-    map: terrainTexture,
     fog: true,
   });
   terrainMaterial.onBeforeCompile = function (shader) {
@@ -266,12 +269,13 @@ function createSceneObjects() {
         vec4 texColor = texture2D(uTexture, rotatedUV);
   
         float wetFactor = smoothstep(uMaxHeight, uMinHeight, vHeight);
-        vec3 darkenedColor = mix(texColor.rgb * (vec3(149, 127, 83) * 0.05) * 0.1, texColor.rgb, wetFactor);
+        vec3 darkenedColor = mix(texColor.rgb * (vec3(149, 127, 83) * 0.04) * 0.1, texColor.rgb, wetFactor);
         diffuseColor.rgb = darkenedColor;
       `
     );
   };
 
+  const terrainGeometry = generateTerrain(1500, 1500, noise2D);
   const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.castShadow = true;
   terrainMesh.receiveShadow = true;
@@ -288,7 +292,7 @@ function createSceneObjects() {
       threshold: { value: 0.0 },
       foamScale: { value: 0.0 },
       thickness: { value: 0.5 },
-      tDudv: { value: textureLoader.load("foam-texture.png") },
+      tDudv: { value: textureLoader.load("textures/foam-texture.png") },
       tDepth: { value: depthRenderTarget.depthTexture },
       cameraNear: { value: camera.near },
       cameraFar: { value: camera.far },
@@ -313,7 +317,50 @@ function createSceneObjects() {
   waterMesh.position.y = -0.5;
   scene.add(waterMesh);
 
-  const loader = new GLTFLoader();
+  const objLoader = new OBJLoader();
+  const laptopTexture1 = textureLoader.load("textures/laptop-texture1.jpg");
+  const laptopTexture2 = textureLoader.load("textures/laptop-texture2.jpg");
+  const laptopTexture1Normal = textureLoader.load(
+    "textures/laptop-texture1-normal.jpg"
+  );
+  const laptopTexture2Normal = textureLoader.load(
+    "textures/laptop-texture2-normal.jpg"
+  );
+  const laptopMaterial1 = new THREE.MeshStandardMaterial({
+    map: laptopTexture1,
+    normalMap: laptopTexture1Normal,
+  });
+  const laptopMaterial2 = new THREE.MeshStandardMaterial({
+    map: laptopTexture2,
+    normalMap: laptopTexture2Normal,
+  });
+  const laptopMesh = objLoader.load("models/laptop.obj", (object) => {
+    object.traverse((child) => {
+      if (child.isMesh) {
+        console.log(child);
+        child.material = [laptopMaterial1, laptopMaterial2];
+      }
+    });
+    object.scale.set(0.1, 0.1, 0.1);
+    object.position.set(-38, 0, 72);
+    object.rotation.y = Math.PI / 2;
+    scene.add(object);
+  });
+  
+  const chairMesh = objLoader.load("models/chair.obj", (object) => {
+    object.scale.set(0.3, 0.3, 0.3);
+    // object.position.set(-36, 0, 71);
+    object.position.set(-38, -0.1, 74);
+    object.rotation.y = Math.PI;
+    scene.add(object);
+  });
+
+  // const cube = new THREE.Mesh(
+  //   new THREE.BoxGeometry(0.1, 1, 0.1),
+  //   new THREE.MeshPhongMaterial()
+  // );
+  // cube.position.set(-38, 0, 72);
+  // scene.add(cube);
 }
 
 function updateRendererSize() {
