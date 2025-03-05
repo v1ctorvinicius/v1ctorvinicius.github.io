@@ -4,6 +4,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { resizeRendererToDisplaySize, loadShader } from "./util";
 import { createNoise2D } from "simplex-noise";
 import alea from "alea";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import vertexShader from "./shaders/waterVertexShader.glsl";
 import fragmentShader from "./shaders/waterFragmentShader.glsl";
@@ -19,11 +20,13 @@ let sky;
 let directionalLight, lightCameraHelper;
 let dirLightShadowMap;
 let cameraIndex = 0;
-let camPositions = [
+let cameraPositions = [
+  new THREE.Vector3(-36, 0.1, 72),
   new THREE.Vector3(-40, 0, 75),
   new THREE.Vector3(-53, 2.5, 86),
 ];
-let camTargetPositions = [
+let cameraTargetPositions = [
+  new THREE.Vector3(-30, 2, 75),
   new THREE.Vector3(0, 0, 60),
   new THREE.Vector3(30, 0, 90),
 ];
@@ -50,6 +53,7 @@ async function main() {
 
   scene = new THREE.Scene();
   camera = createCamera();
+  // controls = createControls();
 
   depthRenderTarget = createDepthRenderTarget();
   createSceneObjects();
@@ -64,17 +68,69 @@ function render() {
   // water animation
   captureSceneDepth();
   updateWaterMaterialUniforms(time);
-
+  // controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(render);
 }
 
-function updateCamera() {
-  // animate camera with sin wave
-  camera.position.x = camPositions[cameraIndex].x + Math.sin(time * 0.8) * 0.05;
-  camera.position.y = camPositions[cameraIndex].y + Math.sin(time * 0.8) * 0.05;
-  camera.position.z = camPositions[cameraIndex].z + Math.cos(time * 0.8) * 0.05;
-  camera.lookAt(camTargetPositions[cameraIndex]);
+function createCamera() {
+  const cam = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.01,
+    3000
+  );
+
+  cam.position.set(
+    cameraPositions[0].x,
+    cameraPositions[0].y,
+    cameraPositions[0].z
+  );
+  cam.lookAt(cameraTargetPositions[0]);
+
+  const cameraButton = document.getElementById("camera-btn");
+  cameraButton.addEventListener("click", () => {
+    cameraIndex++;
+    if (cameraIndex >= cameraPositions.length) cameraIndex = 0;
+  });
+
+  return cam;
+}
+
+let cameraAnimationNoiseTime = 0;
+const cameraAnimationMaxOffset = 0.1;
+let smoothedPosition = new THREE.Vector3().copy(cameraPositions[0]);
+let smoothedLookAt = new THREE.Vector3().copy(cameraTargetPositions[0]);
+function updateCamera() {  
+  cameraAnimationNoiseTime += 0.001;
+
+  const noiseX = noise2D(cameraAnimationNoiseTime, 0) * cameraAnimationMaxOffset;
+  const noiseY = noise2D(0, cameraAnimationNoiseTime) * cameraAnimationMaxOffset;
+  const noiseZ = noise2D(cameraAnimationNoiseTime, cameraAnimationNoiseTime) * cameraAnimationMaxOffset;
+
+  let targetX = cameraPositions[cameraIndex].x + noiseX;
+  let targetY = cameraPositions[cameraIndex].y + noiseY;
+  let targetZ = cameraPositions[cameraIndex].z + noiseZ;
+
+  smoothedPosition.x = THREE.MathUtils.lerp(smoothedPosition.x, targetX, 0.01);
+  smoothedPosition.y = THREE.MathUtils.lerp(smoothedPosition.y, targetY, 0.01);
+  smoothedPosition.z = THREE.MathUtils.lerp(smoothedPosition.z, targetZ, 0.01);
+
+  camera.position.copy(smoothedPosition);
+  smoothedLookAt.lerp(cameraTargetPositions[cameraIndex], 0.005);
+  camera.lookAt(smoothedLookAt);
+}
+
+function createControls() {
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(
+    cameraTargetPositions[0].x,
+    cameraTargetPositions[0].y,
+    cameraTargetPositions[0].z
+  );
+  // controls.maxPolarAngle = Math.PI / 2;
+  controls.update();
+  return controls;
 }
 
 function debug() {
@@ -134,26 +190,6 @@ function createDepthRenderTarget() {
   return depthRenderTarget;
 }
 
-function createCamera() {
-  const cam = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    3000
-  );
-
-  cam.position.set(camPositions[0].x, camPositions[0].y, camPositions[0].z);
-  cam.lookAt(camTargetPositions[0]);
-
-  const cameraButton = document.getElementById("camera-btn");
-  cameraButton.addEventListener("click", () => {
-    cameraIndex++;
-    if (cameraIndex >= camPositions.length) cameraIndex = 0;
-  });
-
-  return cam;
-}
-
 function createSceneObjects() {
   scene.fog = new THREE.Fog(new THREE.Color(0x9aabc3), 10, 200);
 
@@ -166,22 +202,23 @@ function createSceneObjects() {
 
   sky.scale.setScalar(450000);
   const phi = THREE.MathUtils.degToRad(65);
-  const theta = THREE.MathUtils.degToRad(90);
+  const theta = THREE.MathUtils.degToRad(50);
   const sunPosition = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
   sky.material.uniforms.sunPosition.value = sunPosition;
   scene.add(sky);
 
   directionalLight = new THREE.DirectionalLight(0xffffff, 3);
-  directionalLight.position.set(0, 10, 10);
+  directionalLight.position.set(-20, 20, 72);
   directionalLight.shadow.camera.near = 0.1;
   directionalLight.shadow.camera.far = 500;
-  directionalLight.shadow.camera.left = -200;
-  directionalLight.shadow.camera.right = 200;
-  directionalLight.shadow.camera.top = 200;
-  directionalLight.shadow.camera.bottom = -200;
-  directionalLight.shadow.mapSize.width = 2000;
-  directionalLight.shadow.mapSize.height = 2000;
-  directionalLight.shadow.bias = -0.0002;
+  directionalLight.shadow.camera.left = -5;
+  directionalLight.shadow.camera.right = 5;
+  directionalLight.shadow.camera.top = 5;
+  directionalLight.shadow.camera.bottom = -5;
+  directionalLight.shadow.mapSize.width = 5000;
+  directionalLight.shadow.mapSize.height = 5000;
+  // directionalLight.shadow.radius = 5;
+  // directionalLight.shadow.bias = 0;
   // directionalLight.add(lensflare);
   directionalLight.castShadow = true;
   scene.add(directionalLight);
@@ -190,7 +227,7 @@ function createSceneObjects() {
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
   );
-  directionalLightTarget.position.set(0, 2, 0);
+  directionalLightTarget.position.set(-32, 2, 72);
   scene.add(directionalLightTarget);
   directionalLight.target = directionalLightTarget;
 
@@ -198,6 +235,9 @@ function createSceneObjects() {
     directionalLight
   );
   scene.add(directionalLightHelper);
+
+  const shadowHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+  scene.add(shadowHelper);
 
   dirLightShadowMap = directionalLight.shadow.map;
 
@@ -208,13 +248,6 @@ function createSceneObjects() {
   terrainTexture.wrapT = THREE.RepeatWrapping;
   terrainTexture.rotation = Math.PI / 5;
 
-  const terrainTextureNormal = new THREE.TextureLoader().load(
-    "textures/sand-texture-normal.png"
-  );
-  terrainTextureNormal.wrapS = THREE.RepeatWrapping;
-  terrainTextureNormal.wrapT = THREE.RepeatWrapping;
-  terrainTextureNormal.rotation = Math.PI / 5;
-
   terrainMaterial = new THREE.MeshStandardMaterial({
     fog: true,
   });
@@ -222,7 +255,7 @@ function createSceneObjects() {
     shader.uniforms.uTexture = { value: terrainTexture };
     shader.uniforms.uMinHeight = { value: -0.3 };
     shader.uniforms.uMaxHeight = { value: -0.5 };
-    shader.uniforms.uRepeat = { value: new THREE.Vector2(500, 500) };
+    shader.uniforms.uRepeat = { value: new THREE.Vector2(2000, 2000) };
     shader.uniforms.uRotation = { value: Math.PI / 1.4 };
     shader.vertexShader = shader.vertexShader.replace(
       `#include <common>`,
@@ -318,6 +351,8 @@ function createSceneObjects() {
   scene.add(waterMesh);
 
   const objLoader = new OBJLoader();
+  const fbxLoader = new FBXLoader();
+
   const laptopTexture1 = textureLoader.load("textures/laptop-texture1.jpg");
   const laptopTexture2 = textureLoader.load("textures/laptop-texture2.jpg");
   const laptopTexture1Normal = textureLoader.load(
@@ -337,30 +372,40 @@ function createSceneObjects() {
   const laptopMesh = objLoader.load("models/laptop.obj", (object) => {
     object.traverse((child) => {
       if (child.isMesh) {
-        console.log(child);
         child.material = [laptopMaterial1, laptopMaterial2];
       }
     });
-    object.scale.set(0.1, 0.1, 0.1);
-    object.position.set(-38, 0, 72);
+    object.scale.set(0.3, 0.3, 0.3);
+    object.position.set(-36, 0.5, 70);
     object.rotation.y = Math.PI / 2;
     scene.add(object);
   });
-  
-  const chairMesh = objLoader.load("models/chair.obj", (object) => {
-    object.scale.set(0.3, 0.3, 0.3);
-    // object.position.set(-36, 0, 71);
-    object.position.set(-38, -0.1, 74);
-    object.rotation.y = Math.PI;
+
+  const chairTexture = textureLoader.load("textures/beach_chair.png");
+  const chairMaterial = new THREE.MeshStandardMaterial({
+    map: chairTexture,
+  });
+  fbxLoader.load("models/beach_chair.fbx", (object) => {
+    object.traverse((child) => {
+      if (child.isMesh) {
+        child.material = chairMaterial;
+        child.castShadow = true;
+      }
+    });
+    object.scale.set(0.25, 0.25, 0.25);
+    object.position.set(-35, -0.13, 72);
+    object.rotation.y = Math.PI / 90;
+    object.rotation.x = 0.27;
+    object.rotation.z = 0.05;
     scene.add(object);
   });
-
-  // const cube = new THREE.Mesh(
-  //   new THREE.BoxGeometry(0.1, 1, 0.1),
-  //   new THREE.MeshPhongMaterial()
-  // );
-  // cube.position.set(-38, 0, 72);
-  // scene.add(cube);
+  const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 1, 0.1),
+    new THREE.MeshPhongMaterial()
+  );
+  cube.position.set(-38, 0, 72);
+  cube.castShadow = true;
+  scene.add(cube);
 }
 
 function updateRendererSize() {
