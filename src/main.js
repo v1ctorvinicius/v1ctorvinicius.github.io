@@ -63,7 +63,7 @@ async function main() {
 function render() {
   // debug();
   time = clock.getElapsedTime();
-  updateCamera();
+  animateCamera();
   updateRendererSize();
   // water animation
   captureSceneDepth();
@@ -101,12 +101,16 @@ let cameraAnimationNoiseTime = 0;
 const cameraAnimationMaxOffset = 0.1;
 let smoothedPosition = new THREE.Vector3().copy(cameraPositions[0]);
 let smoothedLookAt = new THREE.Vector3().copy(cameraTargetPositions[0]);
-function updateCamera() {  
+function animateCamera() {
   cameraAnimationNoiseTime += 0.001;
 
-  const noiseX = noise2D(cameraAnimationNoiseTime, 0) * cameraAnimationMaxOffset;
-  const noiseY = noise2D(0, cameraAnimationNoiseTime) * cameraAnimationMaxOffset;
-  const noiseZ = noise2D(cameraAnimationNoiseTime, cameraAnimationNoiseTime) * cameraAnimationMaxOffset;
+  const noiseX =
+    noise2D(cameraAnimationNoiseTime, 0) * cameraAnimationMaxOffset;
+  const noiseY =
+    noise2D(0, cameraAnimationNoiseTime) * cameraAnimationMaxOffset;
+  const noiseZ =
+    noise2D(cameraAnimationNoiseTime, cameraAnimationNoiseTime) *
+    cameraAnimationMaxOffset;
 
   let targetX = cameraPositions[cameraIndex].x + noiseX;
   let targetY = cameraPositions[cameraIndex].y + noiseY;
@@ -117,7 +121,7 @@ function updateCamera() {
   smoothedPosition.z = THREE.MathUtils.lerp(smoothedPosition.z, targetZ, 0.01);
 
   camera.position.copy(smoothedPosition);
-  smoothedLookAt.lerp(cameraTargetPositions[cameraIndex], 0.005);
+  smoothedLookAt.lerp(cameraTargetPositions[cameraIndex], 0.003);
   camera.lookAt(smoothedLookAt);
 }
 
@@ -209,6 +213,7 @@ function createSceneObjects() {
 
   directionalLight = new THREE.DirectionalLight(0xffffff, 3);
   directionalLight.position.set(-20, 20, 72);
+  directionalLight.shadow.intensity = 0.9;
   directionalLight.shadow.camera.near = 0.1;
   directionalLight.shadow.camera.far = 500;
   directionalLight.shadow.camera.left = -5;
@@ -393,9 +398,9 @@ function createSceneObjects() {
       }
     });
     object.scale.set(0.25, 0.25, 0.25);
-    object.position.set(-35, -0.13, 72);
-    object.rotation.y = Math.PI / 90;
-    object.rotation.x = 0.27;
+    object.position.set(-35, -0.12, 72);
+    object.rotation.y = 0.03;
+    object.rotation.x = 0.22;
     object.rotation.z = 0.05;
     scene.add(object);
   });

@@ -19,6 +19,7 @@
 body {
   margin: 0;
   height: 100%;
+  width: 100%;
 }
 
 #canvas {
@@ -27,22 +28,36 @@ body {
   height: 100%;
 }
 
-#camera-btn {
-  position: absolute;
-  left: 50%;
-  bottom: 1vh;
-  background-color: rgba(50, 50, 50, 0.50);
+.btn {
+  /* position: absolute; */
+  background-color: rgba(50, 50, 50, 0.5);
   z-index: 1;
-  height: 4vh;
-  width: 4vh;
+  height: 4vw;
+  width: 4vw;
   border: none;
   border-radius: 50px;
   display: flex;
   justify-content: center;
   align-items: center;
+  font-size: 1.5vw;
 }
 
-#camera-btn:hover {
+.btn:hover {
   cursor: pointer;
   background-color: rgba(50, 50, 50, 0.6);
+}
+
+#nav {
+  position: absolute;
+  z-index: 1;
+  width: 100%;
+  bottom: 2vh;
+  display: flex;
+  justify-content: center;
+  gap: 1vw;
+  align-items: center;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }

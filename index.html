@@ -6,15 +6,30 @@
     <link rel="stylesheet" href="src/style.css" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=flip_camera_ios"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
     />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Victor Santos Portfolio</title>
   </head>
   <body>
-    <button id="camera-btn">
-      <span class="material-symbols-outlined"> flip_camera_ios </span>
-    </button>
+    <nav id="nav">
+      <button class="btn">
+        <i class="fa-solid fa-briefcase"></i>
+      </button>
+      <button class="btn">
+        <i class="fa-solid fa-address-card"></i>
+      </button>
+      <button class="btn">
+        <i class="fa-solid fa-address-book"></i>
+      </button>
+      <button id="camera-btn" class="btn">
+        <i class="fa-sharp fa-solid fa-camera-rotate"></i>
+      </button>
+      <button id="dark-mode-btn" class="btn">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+    </nav>
     <canvas id="canvas"></canvas>
     <script type="module" src="/src/main.js"></script>
   </body>
