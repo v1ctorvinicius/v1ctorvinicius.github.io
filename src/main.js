@@ -395,6 +395,7 @@ function createSceneObjects() {
       if (child.isMesh) {
         child.material = chairMaterial;
         child.castShadow = true;
+        child.receiveShadow = true;
       }
     });
     object.scale.set(0.25, 0.25, 0.25);
